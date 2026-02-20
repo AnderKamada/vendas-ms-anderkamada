@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<!--
+  ARQUIVO DE DEMONSTRAÇÃO — aula
+  Abrir direto no browser (sem servidor).
+  Em aula, os valores fixos serão substituídos pelas expressões Thymeleaf correspondentes.
+  Procure os comentários "→ THYMELEAF" para saber o que trocar em cada ponto.
+-->
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-900">
+<div class="max-w-4xl mx-auto p-4">
+
+    <!-- ============================================================
+         NAVBAR
+         → THYMELEAF: substituir todo este <nav> por:
+           <div th:replace="~{fragments.html :: navbar('clientes')}"></div>
+         "clientes" → link Clientes fica com bg-gray-400 (ativo)
+         ============================================================ -->
+    <nav class="flex justify-between items-center bg-white p-4 shadow-md rounded-md">
+        <div class="flex space-x-4">
+            <a href="/"         class="px-4 py-2 rounded bg-gray-200">Início</a>
+            <a href="/clientes" class="px-4 py-2 rounded bg-gray-400">Clientes</a>
+            <!-- → THYMELEAF: th:classappend="${activePage == 'clientes' ? 'bg-gray-400' : 'bg-gray-200'}" -->
+            <a href="/pedidos"  class="px-4 py-2 rounded bg-gray-200">Pedidos</a>
+        </div>
+        <div class="relative">
+            <button class="text-sm text-gray-400 focus:outline-none" id="userMenuButton">
+                <!-- → THYMELEAF: th:text="${session.username}" -->
+                aluno-fiap
+                <!-- → THYMELEAF: th:src="${session.urlAvatar}" -->
+                <img src="https://avatars.githubusercontent.com/u/9919?s=48"
+                     alt="Avatar" class="w-8 h-8 rounded-full inline-block ml-2"/>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ============================================================
+         FORMULÁRIO DE BUSCA
+         → THYMELEAF: <form th:action="@{/clientes/detalhe}" method="post">
+         th:action garante que o context-path seja incluído na URL
+         ============================================================ -->
+    <div class="bg-white p-4 mt-4 shadow-md rounded-md">
+        <main class="flex flex-col items-center">
+            <form action="/clientes/detalhe" method="post">
+                <p class="text-left mb-2">Localizar cliente pelo CPF</p>
+                <div class="flex items-center space-x-2">
+                    <input id="cpfInput" type="text" name="cpf"
+                           placeholder="Apenas números (11 dígitos)"
+                           pattern="\d{11}" maxlength="11"
+                           oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                           class="border border-gray-300 p-2 rounded w-72"/>
+                    <button type="submit"
+                            class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">
+                        Localizar
+                    </button>
+                </div>
+            </form>
+        </main>
+    </div>
+
+</div>
+</body>
+</html>
