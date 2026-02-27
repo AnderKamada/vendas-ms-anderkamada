@@ -6,15 +6,13 @@ import br.com.fiap.vendasms.external_interface.feign.CepDetails;
 import br.com.fiap.vendasms.service.ClienteService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.NoSuchElementException;
 
 @Controller
 @RequestMapping("/clientes")
-public class ClienteController {
+public class ClienteController extends CommonController{
 
     private final ClienteService clienteService;
     private final CepApi cepApi;
@@ -46,6 +44,17 @@ public class ClienteController {
 
         model.addAttribute("cliente",clienteDto);
         return "detalhe-cliente";
+    }
+
+    @GetMapping("/detalhe/{cpf}")
+    public String detalhe(@PathVariable("cpf") String cpf, Model model){
+        return detalhe(ClienteDto.empty(cpf),model);
+    }
+
+    @PostMapping("/save")
+    public String save(@ModelAttribute ClienteDto cliente){
+        this.clienteService.saveOrUpdate(cliente.toEntity());
+        return "redirect:/pedidos/detalhe/"+cliente.cpf();
     }
 
 
