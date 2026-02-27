@@ -20,6 +20,12 @@ public class Pedido {
 
     private String descricao;
 
+    public Pedido(UUID id, Cliente entity, Status status, String descricao) {
+        this.id = id;
+        this.cliente = entity;
+        this.status = status;
+        this.descricao = descricao;
+    }
 
     public enum Status {
         PENDENTE_ENVIO,

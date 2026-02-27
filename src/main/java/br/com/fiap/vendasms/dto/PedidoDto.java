@@ -28,4 +28,10 @@ public record PedidoDto(UUID id, ClienteDto cliente, String status, String descr
         return pedidos.stream().map(PedidoDto::from).toList();
     }
 
+    public Pedido toEntity() {
+        return new Pedido(id,
+                cliente.toEntity(),
+                status == null ? Pedido.Status.PENDENTE_ENVIO : Pedido.Status.valueOf(status),
+                descricao);
+    }
 }

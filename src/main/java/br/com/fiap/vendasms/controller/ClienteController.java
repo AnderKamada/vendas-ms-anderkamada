@@ -39,7 +39,7 @@ public class ClienteController extends CommonController{
 
         if(clienteDto.cep() != null && clienteDto.cep().isBlank()){
             var cepDetails = this.cepApi.get(clienteDto.cep());
-            clienteDto.enrichWith(cepDetails);
+            clienteDto = clienteDto.enrichWith(cepDetails);
         }
 
         model.addAttribute("cliente",clienteDto);
