@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR"  xmlns:th="http://www.thymeleaf.org">
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,13 +25,13 @@
         <tbody>
 
         <tr th:if="${pedidos.isEmpty()}">
-            <td colspan="3" class="py-2 text-center text-gray-500" >
+            <td colspan="3" class="py-2 text-center text-gray-500">
                 Nenhum pedido registrado
             </td>
         </tr>
 
 
-        <tr th:unless="${!pedidos.isEmpty()}" th:each="pedido : ${pedidos}" class="border-t">
+        <tr th:unless="${pedidos.isEmpty()}" th:each="pedido : ${pedidos}" class="border-t">
             <td class="py-2 text-center text-xs text-gray-400" th:text="${pedido.id}"></td>
             <td class="py-2 text-center" th:text="${pedido.descricao}"></td>
             <td class="py-2 text-center" th:text="${pedido.status}"></td>

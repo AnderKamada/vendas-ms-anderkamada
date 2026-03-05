@@ -57,6 +57,4 @@ public class ClienteController extends CommonController{
         return "redirect:/pedidos/detalhe/"+cliente.cpf();
     }
 
-
-
 }
