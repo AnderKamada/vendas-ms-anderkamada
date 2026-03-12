@@ -458,7 +458,7 @@ O `vendas-ms` atual é um microserviço em desenvolvimento. Para estar pronto pa
 
 ---
 
-## Parte 5 — Quando NÃO usar microserviços
+## Quando NÃO usar microserviços
 
 Microserviços não são bala de prata. Eles resolvem problemas que surgem com **escala** — de produto, de times, de tráfego. Antes dessa escala, eles introduzem complexidade sem benefício proporcional.
 
@@ -476,6 +476,324 @@ Microserviços não são bala de prata. Eles resolvem problemas que surgem com *
 - O processo de build e teste já demora mais de 20-30 minutos
 
 > **Estratégia comum:** começar com um monólito bem estruturado (com módulos bem separados internamente) e extrair microserviços conforme a necessidade aparece. Isso é chamado de **"Strangler Fig Pattern"** — o monólito vai sendo gradualmente substituído pelos serviços.
+
+---
+
+## Parte 5 — Migrations de banco de dados com Flyway
+
+### O problema que o Flyway resolve
+
+O projeto usa `spring.jpa.hibernate.ddl-auto=update` para criar e atualizar as tabelas automaticamente com base nas entidades Java. Isso parece conveniente, mas é perigoso:
+
+| Situação | `ddl-auto=update` | Com Flyway |
+|---|---|---|
+| **Nova coluna adicionada** | Adiciona — mas nunca remove colunas antigas | Executa o `ALTER TABLE` exatamente como escrito |
+| **Coluna renomeada** | Adiciona a nova, deixa a antiga — dados perdidos | Você controla: `RENAME COLUMN` explícito |
+| **Em produção com dados reais** | Qualquer erro de schema pode corromper dados | Transação SQL: ou tudo funciona ou nada muda |
+| **Rastreabilidade** | Nenhuma — ninguém sabe quem mudou o que | Histórico completo com versão, autor e data |
+| **Múltiplos desenvolvedores** | Race condition — dois devs mudam a entidade ao mesmo tempo | Cada um cria um script versionado, sem conflito |
+| **Ambientes diferentes** | Dev e prod podem divergir silenciosamente | O mesmo script roda em todos os ambientes |
+
+> **Regra de ouro:** `ddl-auto=update` (ou `create`) é aceitável em desenvolvimento local. Em qualquer ambiente compartilhado — homologação, produção — use `none` com Flyway.
+
+---
+
+### Como o Flyway funciona
+
+O Flyway controla quais scripts já foram executados através de uma tabela chamada `flyway_schema_history`, que ele cria automaticamente no primeiro uso.
+
+```mermaid
+sequenceDiagram
+    participant App as Aplicação (Spring Boot)
+    participant FW as Flyway
+    participant DB as Banco de Dados
+
+    App->>FW: inicia (antes do contexto Spring subir)
+    FW->>DB: verifica se flyway_schema_history existe
+    DB-->>FW: não existe → cria a tabela
+    FW->>DB: lê scripts em db/migration/
+    FW->>DB: verifica quais versões já foram aplicadas
+    DB-->>FW: V1 e V2 já aplicados; V3 pendente
+    FW->>DB: executa V3__create_usuario.sql
+    DB-->>FW: sucesso
+    FW-->>App: schema atualizado — pode continuar subindo
+```
+
+**O que o Flyway guarda em `flyway_schema_history`:**
+
+| installed_rank | version | description | script | checksum | success |
+|---|---|---|---|---|---|
+| 1 | 1 | create cliente | V1__create_cliente.sql | 1234567890 | true |
+| 2 | 2 | create pedido | V2__create_pedido.sql | 987654321 | true |
+| 3 | 3 | create usuario | V3__create_usuario.sql | 1122334455 | true |
+
+O **checksum** é um hash do conteúdo do arquivo. Se alguém editar um script já aplicado, o Flyway detecta a inconsistência e **recusa a subir a aplicação** — isso é intencional e evita que alguém "corrija" silenciosamente um script já executado em produção.
+
+---
+
+### Convenção de nomenclatura dos arquivos
+
+```
+V{versão}__{descrição}.sql
+│  │        │
+│  │        └── Descrição em snake_case (palavras separadas por _)
+│  └─────────── Duplo underscore obrigatório
+└────────────── Prefixo V maiúsculo para migrations versionadas
+```
+
+**Exemplos válidos:**
+
+```
+V1__create_cliente.sql
+V2__create_pedido.sql
+V3__create_usuario.sql
+V4__add_apelido_to_cliente.sql      ← ALTER TABLE
+V5__seed_admin_user.sql             ← INSERT (dados iniciais)
+V6__rename_completo_to_complemento.sql
+```
+
+**Outros tipos de script (menos comuns):**
+
+| Prefixo | Nome | Quando usar |
+|---|---|---|
+| `V` | Versioned | A grande maioria — scripts que rodam uma vez |
+| `R` | Repeatable | Scripts que re-rodam sempre que o conteúdo muda (ex: views, stored procedures) |
+| `U` | Undo | Desfaz uma migration (requer Flyway Teams, versão paga) |
+
+---
+
+### Implementação no projeto
+
+#### Passo 1 — Dependência no `pom.xml`
+
+```xml
+<dependency>
+    <groupId>org.flywaydb</groupId>
+    <artifactId>flyway-mysql</artifactId>
+</dependency>
+```
+
+> **Por que `flyway-mysql` e não `flyway-core`?** O `flyway-core` é incluído transitivamente pelo Spring Boot. O `flyway-mysql` adiciona o suporte específico ao MySQL 8, necessário desde o Flyway 9. Sem ele, a aplicação não sobe com MySQL moderno.
+
+#### Passo 2 — Atualizar `application.properties`
+
+```properties
+# ANTES — Hibernate criava/atualizava o schema
+spring.jpa.hibernate.ddl-auto=update
+
+# DEPOIS — Hibernate não toca no schema; Flyway é o responsável
+spring.jpa.hibernate.ddl-auto=none
+```
+
+O Flyway é detectado automaticamente pelo Spring Boot (auto-configuration). Não é necessário nenhuma anotação ou `@Bean` adicional. As propriedades de conexão (`spring.datasource.*`) já configuradas são reutilizadas.
+
+#### Passo 3 — Criar os scripts em `db/migration/`
+
+O diretório padrão que o Flyway lê é `src/main/resources/db/migration/`. Não é necessário configurar — é a convenção.
+
+**`V1__create_cliente.sql`**
+
+```sql
+CREATE TABLE cliente (
+    cpf      VARCHAR(255) NOT NULL,
+    nome     VARCHAR(255),
+    cep      VARCHAR(255),
+    numero   VARCHAR(255),
+    completo VARCHAR(255),
+    telefone VARCHAR(255),
+    PRIMARY KEY (cpf)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+**`V2__create_pedido.sql`**
+
+```sql
+CREATE TABLE pedido (
+    id         BINARY(16)   NOT NULL,
+    descricao  VARCHAR(255),
+    status     VARCHAR(255),
+    cliente_id VARCHAR(255),
+    PRIMARY KEY (id),
+    CONSTRAINT fk_pedido_cliente FOREIGN KEY (cliente_id) REFERENCES cliente (cpf)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+**`V3__create_usuario.sql`**
+
+```sql
+CREATE TABLE usuario (
+    login VARCHAR(255) NOT NULL,
+    PRIMARY KEY (login)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE usuarios_roles (
+    login VARCHAR(255) NOT NULL,
+    role  VARCHAR(255),
+    CONSTRAINT fk_roles_usuario FOREIGN KEY (login) REFERENCES usuario (login)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+**Por que `BINARY(16)` para o id do pedido?**
+
+O campo `id` na entidade `Pedido` é do tipo `UUID` com `@GeneratedValue(strategy = GenerationType.UUID)`. O Hibernate 6 (usado pelo Spring Boot 3.x) armazena UUIDs no MySQL como `BINARY(16)` — 16 bytes em formato binário, mais eficiente que `VARCHAR(36)` com hifens. O Flyway não sabe disso; quem precisa saber é você ao escrever o DDL.
+
+---
+
+### Estrutura final de arquivos
+
+```
+src/main/resources/
+├── application.properties
+├── messages.properties
+├── messages_en.properties
+├── db/
+│   └── migration/
+│       ├── V1__create_cliente.sql
+│       ├── V2__create_pedido.sql
+│       └── V3__create_usuario.sql
+└── templates/
+    └── ...
+```
+
+---
+
+### Cenários para testar em sala
+
+#### Cenário 1 — Primeiro start: Flyway cria tudo
+
+```bash
+# 1. Garantir banco limpo (remove o volume existente)
+docker compose down -v
+docker compose up -d
+
+# 2. Subir a aplicação
+./mvnw spring-boot:run
+```
+
+Logs esperados na inicialização:
+```
+Flyway Community Edition ... by Redgate
+Database: jdbc:mysql://localhost:3306/vendasdb (MySQL 8.0)
+Successfully validated 3 migrations (execution time 00:00.020s)
+Current version of schema `vendasdb`: << Empty Schema >>
+Migrating schema `vendasdb` to version "1 - create cliente"
+Migrating schema `vendasdb` to version "2 - create pedido"
+Migrating schema `vendasdb` to version "3 - create usuario"
+Successfully applied 3 migrations to schema `vendasdb` (execution time 00:00.150s)
+```
+
+Verificar no banco:
+```sql
+-- Ver o histórico de migrations aplicadas
+SELECT version, description, success, installed_on
+FROM flyway_schema_history
+ORDER BY installed_rank;
+
+-- Ver as tabelas criadas
+SHOW TABLES;
+```
+
+---
+
+#### Cenário 2 — Nova migration: adicionar coluna
+
+Simule a adição do campo `apelido` à tabela de clientes.
+
+Crie `V4__add_apelido_to_cliente.sql`:
+
+```sql
+ALTER TABLE cliente
+    ADD COLUMN apelido VARCHAR(100);
+```
+
+Reinicie a aplicação sem derrubar o banco. O Flyway detecta que V1, V2 e V3 já foram aplicados e executa apenas V4:
+
+```
+Current version of schema `vendasdb`: 3
+Migrating schema `vendasdb` to version "4 - add apelido to cliente"
+Successfully applied 1 migration (execution time 00:00.050s)
+```
+
+---
+
+#### Cenário 3 — O que acontece ao editar um script já aplicado
+
+Edite `V1__create_cliente.sql` — qualquer mudança, como um comentário:
+
+```sql
+-- comentário adicionado depois
+CREATE TABLE cliente ( ...
+```
+
+Reinicie a aplicação. O Flyway calcula o checksum do arquivo e compara com o salvo em `flyway_schema_history`. Eles diferem — a aplicação **recusa subir**:
+
+```
+FlywayException: Validate failed:
+Detected failed migration to version 1 (create cliente).
+Migration checksum mismatch for migration version 1.
+  -> Applied to database: 1234567890
+  -> Resolved locally:    9876543210
+```
+
+**Por que isso é bom?** Em produção, ninguém pode "corrigir" silenciosamente um script que já rodou. A única forma de desfazer é criar uma nova migration (V5 que reverta o V4, por exemplo).
+
+Para continuar durante o desenvolvimento (apenas!):
+```bash
+./mvnw flyway:repair -Dflyway.url=jdbc:mysql://... -Dflyway.user=root -Dflyway.password=root
+```
+
+> `repair` atualiza o checksum no banco para corresponder ao arquivo atual. **Nunca use isso em produção.**
+
+---
+
+#### Cenário 4 — Migration de dados: seed do usuário admin
+
+Além de DDL (CREATE, ALTER), migrations podem conter DML (INSERT, UPDATE).
+
+Crie `V5__seed_admin_user.sql` para inserir automaticamente um usuário com role de admin ao subir o sistema pela primeira vez:
+
+```sql
+-- Substitua 'seu-login-github' pelo login real antes de commitar
+INSERT IGNORE INTO usuario (login) VALUES ('seu-login-github');
+
+INSERT IGNORE INTO usuarios_roles (login, role)
+VALUES ('seu-login-github', 'ROLE_PEDIDO'),
+       ('seu-login-github', 'ROLE_CLIENTE_EDIT');
+```
+
+> `INSERT IGNORE` evita erro se o registro já existir. Útil em migrations de seed que podem rodar em bancos que já têm dados.
+
+Agora a primeira pessoa a subir o sistema em um novo ambiente já tem acesso completo — sem precisar executar SQL manual.
+
+---
+
+#### Cenário 5 — Banco com dados existentes: baseline
+
+Você acabou de adicionar o Flyway a um projeto que **já tem o banco criado** pelo `ddl-auto=update`. O Flyway tenta criar as tabelas de V1 e falha porque elas já existem.
+
+Solução: informar ao Flyway que o estado atual do banco já está na versão 3 (ou seja, V1, V2 e V3 estão implicitamente aplicadas):
+
+```properties
+# application.properties — apenas para o primeiro start em banco já existente
+spring.flyway.baseline-on-migrate=true
+spring.flyway.baseline-version=3
+```
+
+O Flyway registra as versões 1, 2 e 3 como já aplicadas sem executar os scripts. A partir daí, apenas versões novas (V4+) serão executadas normalmente.
+
+**Remova essas propriedades** após o primeiro start bem-sucedido em ambientes novos — elas não são necessárias (e podem ser perigosas) depois.
+
+---
+
+### `ddl-auto`: comparativo de valores
+
+| Valor | O que faz | Quando usar |
+|---|---|---|
+| `create` | Dropa e recria o schema a cada start | Testes unitários isolados |
+| `create-drop` | Cria ao subir, dropa ao encerrar | Testes de integração em memória |
+| `update` | Adiciona colunas/tabelas faltando (nunca remove) | Desenvolvimento local rápido |
+| `validate` | Verifica se o schema bate com as entidades — falha se não bater | Com Flyway, para garantir consistência |
+| `none` | Não faz nada — Flyway é o único responsável | **Produção e ambientes compartilhados** |
 
 ---
 
@@ -500,6 +818,7 @@ Microserviços não são bala de prata. Eles resolvem problemas que surgem com *
 
 ## Checklist de aprendizado
 
+**Microserviços**
 - [ ] Sei explicar a diferença entre arquitetura monolítica e microserviços
 - [ ] Entendo por que o monólito não é necessariamente errado — e quando ele é a escolha certa
 - [ ] Sei o que é um Bounded Context e por que ele define as fronteiras de um microserviço
@@ -514,3 +833,13 @@ Microserviços não são bala de prata. Eles resolvem problemas que surgem com *
 - [ ] Sei o que é consistência eventual e o Teorema CAP
 - [ ] Consigo identificar o `vendas-ms` como um microserviço e localizar os conceitos aprendidos no projeto
 - [ ] Sei quando microserviços fazem sentido e quando o monólito ainda é a escolha certa
+
+**Flyway**
+- [ ] Entendo por que `ddl-auto=update` é perigoso em ambientes compartilhados e produção
+- [ ] Sei qual é a convenção de nomenclatura dos scripts (`V{versão}__{descrição}.sql`)
+- [ ] Sei adicionar a dependência `flyway-mysql` ao `pom.xml` e mudar o `ddl-auto` para `none`
+- [ ] Entendo o que a tabela `flyway_schema_history` armazena e para que serve o checksum
+- [ ] Consigo criar migrations de DDL (`CREATE TABLE`, `ALTER TABLE`) e de DML (`INSERT`)
+- [ ] Entendo o que acontece quando um script já aplicado é editado (checksum mismatch)
+- [ ] Sei usar `baseline-on-migrate` para integrar Flyway a um banco já existente
+- [ ] Sei a diferença entre os valores `none`, `validate` e `update` do `ddl-auto`
