@@ -401,6 +401,11 @@ O JSON esperado tem esta estrutura:
 }
 ```
 
+Exemplo para usar via ActiveMQ console:
+```json
+{"id":"958b9aa0-1aa5-4cba-8b8e-3e10e652dcd9","cliente":{"nome":"Joao","cep":"01310100","numero":"1","logradouro":"Av Paulista","bairro":"Bela Vista","localidade":"Sao Paulo","estado":"SP","complemento":"Apto 1"}}
+```
+
 Os nomes dos campos Java devem corresponder exatamente às chaves do JSON (o Jackson usa a convenção camelCase por padrão).
 
 ---
