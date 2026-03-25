@@ -1,6 +1,7 @@
 package br.com.fiap.vendasms.controller;
 
 import br.com.fiap.vendasms.dto.ProdutoDto;
+import br.com.fiap.vendasms.exception.ProdutoNaoEncontradoException;
 import br.com.fiap.vendasms.service.ProdutoService;
 
 import org.springframework.stereotype.Controller;
@@ -52,5 +53,11 @@ public class ProdutoController {
     public String excluir(@PathVariable String id) {
         service.excluir(id);
         return "redirect:/produtos";
+    }
+
+    @ExceptionHandler(ProdutoNaoEncontradoException.class)
+    public String handleProdutoNaoEncontrado(ProdutoNaoEncontradoException e, Model model) {
+        model.addAttribute("erro", e.getMessage());
+        return "erro";
     }
 }

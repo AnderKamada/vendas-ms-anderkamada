@@ -1,6 +1,7 @@
 package br.com.fiap.vendasms.service;
 
 import br.com.fiap.vendasms.entities.Produto;
+import br.com.fiap.vendasms.exception.ProdutoNaoEncontradoException;
 import br.com.fiap.vendasms.repositories.ProdutoRepository;
 import org.springframework.stereotype.Service;
 import java.util.List;
@@ -43,7 +44,7 @@ public class ProdutoServiceImpl implements ProdutoService {
     @Override
     public void excluir(String id) {
         Produto produto = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+                .orElseThrow(() -> new ProdutoNaoEncontradoException("Produto não encontrado"));
 
         repository.delete(produto);
     }
