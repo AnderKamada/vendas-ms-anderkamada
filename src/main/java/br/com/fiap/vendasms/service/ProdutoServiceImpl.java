@@ -32,12 +32,20 @@ public class ProdutoServiceImpl implements ProdutoService {
     @Override
     public Produto salvar(Produto produto) {
 
-        if (produto.getId() == null) {
-            produto.setId(UUID.randomUUID().toString());
+        if (produto.getId() != null && repository.existsById(produto.getId())) {
+
+            Produto existente = repository.findById(produto.getId()).get();
+
+            existente.setNome(produto.getNome());
+            existente.setDescricao(produto.getDescricao());
+            existente.setPreco(produto.getPreco());
+            existente.setCategoria(produto.getCategoria());
+
+            return repository.save(existente);
         }
 
-        // CREATE
-        produto.setId(String.valueOf(UUID.randomUUID()));
+        // CREATE (novo produto)
+        produto.setId(UUID.randomUUID().toString());
         return repository.save(produto);
     }
     @Transactional

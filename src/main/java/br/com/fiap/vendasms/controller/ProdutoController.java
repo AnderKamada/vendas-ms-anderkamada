@@ -1,12 +1,16 @@
 package br.com.fiap.vendasms.controller;
 
 import br.com.fiap.vendasms.dto.ProdutoDto;
+import br.com.fiap.vendasms.entities.Produto;
 import br.com.fiap.vendasms.exception.ProdutoNaoEncontradoException;
 import br.com.fiap.vendasms.service.ProdutoService;
 
+import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 import java.util.UUID;
@@ -44,14 +48,23 @@ public class ProdutoController {
     }
 
     @PostMapping
-    public String salvar(ProdutoDto dto) {
-        service.salvar(dto.toEntity());
+    public String salvar(@Valid Produto produto,
+                         BindingResult result,
+                         RedirectAttributes redirectAttributes) {
+
+        if (result.hasErrors()) {
+            return "produtos/form"; // volta pro form com erros
+        }
+
+        service.salvar(produto);
+        redirectAttributes.addFlashAttribute("mensagem", "Produto salvo com sucesso!");
         return "redirect:/produtos";
     }
 
     @PostMapping("/{id}/delete")
-    public String excluir(@PathVariable String id) {
+    public String excluir(@PathVariable String id, RedirectAttributes redirectAttributes) {
         service.excluir(id);
+        redirectAttributes.addFlashAttribute("mensagem", "Produto excluído com sucesso!");
         return "redirect:/produtos";
     }
 

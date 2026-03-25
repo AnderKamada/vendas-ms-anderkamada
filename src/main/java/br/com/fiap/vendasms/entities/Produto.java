@@ -1,7 +1,7 @@
 package br.com.fiap.vendasms.entities;
 
 import jakarta.persistence.*;
-
+import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.util.UUID;
 
@@ -14,13 +14,16 @@ public class Produto {
     @Id
     private String id;
 
+    private String descricao;
+    @NotBlank(message = "Nome é obrigatório")
     private String nome;
 
-    private String descricao;
-
-    private BigDecimal preco;
-
+    @NotBlank(message = "Categoria é obrigatória")
     private String categoria;
+
+    @NotNull(message = "Preço é obrigatório")
+    @Positive(message = "Preço deve ser maior que zero")
+    private BigDecimal preco;
 
     public String getId() {
         return id;

@@ -11,6 +11,9 @@
     Novo Produto
 </a>
 
+<div th:if="${mensagem}" style="color: green; font-weight: bold;">
+    <p th:text="${mensagem}"></p>
+</div>
 <div th:if="${#lists.isEmpty(produtos)}">
     <p>Nenhum produto cadastrado.</p>
 </div>
