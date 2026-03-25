@@ -1,15 +1,15 @@
 package br.com.fiap.vendasms.entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
 public class Produto {
+
+    @Version
+    private Integer version;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Produtos</title>
+</head>
+<body>
+
+<h1>Lista de Produtos</h1>
+
+<a th:href="@{/produtos/{id}(id=${T(java.util.UUID).randomUUID().toString()})}">
+    Novo Produto
+</a>
+
+<div th:if="${#lists.isEmpty(produtos)}">
+    <p>Nenhum produto cadastrado.</p>
+</div>
+
+<table border="1" th:if="${!#lists.isEmpty(produtos)}">
+    <thead>
+    <tr>
+        <th>Código</th>
+        <th>Nome</th>
+        <th>Categoria</th>
+        <th>Preço</th>
+        <th>Ações</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="produto : ${produtos}">
+        <td th:text="${produto.id}"></td>
+        <td th:text="${produto.nome}"></td>
+        <td th:text="${produto.categoria}"></td>
+        <td th:text="${produto.preco}"></td>
+        <td>
+            <a th:href="@{/produtos/{id}(id=${produto.id})}">Editar</a>
+
+            <form th:action="@{/produtos/excluir/{id}(id=${produto.id})}" method="post" style="display:inline;">
+                <button type="submit">Excluir</button>
+            </form>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

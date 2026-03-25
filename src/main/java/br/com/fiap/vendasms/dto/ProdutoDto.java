@@ -31,13 +31,15 @@ public record ProdutoDto(
     }
 
     public Produto toEntity() {
-        Produto produto = new Produto();
-        produto.setId(this.id);
-        produto.setNome(this.nome);
-        produto.setDescricao(this.descricao);
-        produto.setPreco(this.preco);
-        produto.setCategoria(this.categoria);
-        return produto;
+        Produto p = new Produto();
+
+        p.setId(this.id);
+        p.setNome(this.nome);
+        p.setDescricao(this.descricao);
+        p.setPreco(this.preco);
+        p.setCategoria(this.categoria);
+
+        return p;
     }
 
     public static ProdutoDto empty(UUID id) {
