@@ -7,12 +7,12 @@ import java.util.UUID;
 
 public interface ProdutoService {
 
-    Produto buscarPorId(UUID id);
+    Produto buscarPorId(String id);
 
     List<Produto> listarTodos();
 
     Produto salvar(Produto produto);
 
-    void excluir(UUID id);
+    void excluir(String id);
 
 }

@@ -29,7 +29,7 @@ public class ProdutoController {
     }
 
     @GetMapping("/{id}")
-    public String detalhe(@PathVariable UUID id, Model model) {
+    public String detalhe(@PathVariable String id, Model model) {
         ProdutoDto dto;
 
         try {
@@ -48,8 +48,9 @@ public class ProdutoController {
         return "redirect:/produtos";
     }
 
-    @PostMapping("/excluir/{id}")
+    @PostMapping("/{id}/delete")
     public String excluir(@PathVariable String id) {
-        service.excluir(UUID.fromString(id));
+        service.excluir(id);
         return "redirect:/produtos";
-    }}
+    }
+}

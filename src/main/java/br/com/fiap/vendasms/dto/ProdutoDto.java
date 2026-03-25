@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record ProdutoDto(
-        UUID id,
+        String id,
         String nome,
         String descricao,
         BigDecimal preco,
@@ -42,7 +42,7 @@ public record ProdutoDto(
         return p;
     }
 
-    public static ProdutoDto empty(UUID id) {
+    public static ProdutoDto empty(String id) {
         return new ProdutoDto(
                 id,
                 "",

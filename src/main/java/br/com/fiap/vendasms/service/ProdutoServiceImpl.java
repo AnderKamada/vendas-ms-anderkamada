@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ProdutoServiceImpl implements ProdutoService {
@@ -17,7 +18,7 @@ public class ProdutoServiceImpl implements ProdutoService {
     }
 
     @Override
-    public Produto buscarPorId(UUID id) {
+    public Produto buscarPorId(String id) {
         return repository.findById(id)
                 .orElseThrow(NoSuchElementException::new);
     }
@@ -30,25 +31,17 @@ public class ProdutoServiceImpl implements ProdutoService {
     @Override
     public Produto salvar(Produto produto) {
 
-        if (produto.getId() != null) {
-            // UPDATE
-            Produto existente = repository.findById(produto.getId())
-                    .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
-
-            existente.setNome(produto.getNome());
-            existente.setDescricao(produto.getDescricao());
-            existente.setPreco(produto.getPreco());
-            existente.setCategoria(produto.getCategoria());
-
-            return repository.save(existente);
+        if (produto.getId() == null) {
+            produto.setId(UUID.randomUUID().toString());
         }
 
         // CREATE
-        produto.setId(UUID.randomUUID());
+        produto.setId(String.valueOf(UUID.randomUUID()));
         return repository.save(produto);
     }
+    @Transactional
     @Override
-    public void excluir(UUID id) {
+    public void excluir(String id) {
         repository.deleteById(id);
     }
 }
