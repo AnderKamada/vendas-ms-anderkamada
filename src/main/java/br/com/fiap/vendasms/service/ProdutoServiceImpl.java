@@ -42,6 +42,9 @@ public class ProdutoServiceImpl implements ProdutoService {
     @Transactional
     @Override
     public void excluir(String id) {
-        repository.deleteById(id);
+        Produto produto = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+
+        repository.delete(produto);
     }
 }
